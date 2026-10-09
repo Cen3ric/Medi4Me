@@ -1,0 +1,33 @@
+{
+  "name": "Medi – Mentaltraining",
+  "short_name": "Medi",
+  "description": "Gedanke da → akzeptieren → nicht reagieren → weitermachen.",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#12141a",
+  "theme_color": "#12141a",
+  "lang": "de",
+  "icons": [
+    { "src": "icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "icon-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" },
+    { "src": "icon.svg", "sizes": "any", "type": "image/svg+xml" }
+  ],
+  "shortcuts": [
+    {
+      "name": "SOS",
+      "short_name": "SOS",
+      "description": "30-Sekunden-Hilfe, wenn das Karussell losgeht",
+      "url": "./#sos",
+      "icons": [{ "src": "icon-sos-192.png", "sizes": "192x192", "type": "image/png" }]
+    },
+    {
+      "name": "5-Minuten-Training",
+      "short_name": "Üben",
+      "url": "./#ueben",
+      "icons": [{ "src": "icon-192.png", "sizes": "192x192", "type": "image/png" }]
+    }
+  ]
+}
