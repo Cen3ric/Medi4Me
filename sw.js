@@ -1,6 +1,6 @@
 // Medi – Service Worker (offline)
 // Bei jeder neuen Version die Nummer erhöhen, z. B. "medi-v2"
-const CACHE = "medi-v1";
+const CACHE = "medi-v2";
 const ASSETS = [
   "./",
   "./index.html",

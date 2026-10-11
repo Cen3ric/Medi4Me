@@ -64,6 +64,13 @@
   .primary{display:flex; align-items:center; justify-content:center; gap:10px; width:100%;
     background:var(--sage); color:#0f1712; font-weight:700; font-size:16px; border-radius:14px; padding:16px;}
   .primary:active{filter:brightness(.92);}
+  .primary.night{background:var(--night); color:#0e1220;}
+  .hero.beg{margin-top:12px;}
+  .lenchips{margin:0 0 14px;}
+  .lenchips .chip{flex:1;}
+  .lenchips .chip.on{background:var(--sage-dim); border-color:var(--sage); color:var(--text);}
+  .orb.night::before{background:radial-gradient(circle, rgba(127,155,224,.28), rgba(127,155,224,0) 70%);}
+  .orb.night::after{background:var(--night);}
   .secondary{display:flex; align-items:center; justify-content:center; gap:8px; width:100%;
     background:var(--surface2); border:1px solid var(--border); color:var(--text); font-weight:600; font-size:15px;
     border-radius:14px; padding:14px;}
@@ -117,8 +124,8 @@
   .sess-top{display:flex; align-items:center; justify-content:space-between;}
   .iconbtn{width:42px; height:42px; border-radius:50%; background:var(--surface); border:1px solid var(--border);
     display:flex; align-items:center; justify-content:center; color:var(--muted); font-size:18px;}
-  .segs{display:flex; gap:5px;}
-  .segs i{display:block; width:26px; height:5px; border-radius:4px; background:var(--border); overflow:hidden; position:relative;}
+  .segs{display:flex; gap:5px; width:150px;}
+  .segs i{display:block; flex:1 1 0; min-width:8px; height:5px; border-radius:4px; background:var(--border); overflow:hidden; position:relative;}
   .segs i b{position:absolute; inset:0; width:0; background:var(--sage); border-radius:4px;}
   .segs i.key b{background:var(--sand);}
   .sess-time{font-family:var(--mono); font-size:14px; color:var(--muted); min-width:42px; text-align:right;}
@@ -214,6 +221,7 @@
   .entry .dot{flex:none; width:10px; height:10px; border-radius:50%; margin-top:5px; background:var(--sage);}
   .entry.sos .dot{background:var(--night);}
   .entry.moment .dot{background:var(--sand);}
+  .entry.beg .dot{background:var(--night); opacity:.6;}
   .entry .b{flex:1; min-width:0;}
   .entry .t1{font-size:14px; font-weight:600;}
   .entry .t2{font-size:12px; color:var(--muted); margin-top:2px; line-height:1.4; word-wrap:break-word;}
@@ -256,10 +264,23 @@
   <section class="view" id="view-ueben">
     <div class="card hero">
       <div class="eyebrow">Tägliches Training</div>
-      <h2>5-Minuten-Mentaltraining</h2>
+      <h2>Mentaltraining</h2>
       <p>Nicht verhindern, dass Gedanken kommen – trainieren, dass du nicht auf sie anspringst.</p>
       <div class="weekdots" id="weekDotsUeben"></div>
+      <div class="chips lenchips" id="lenChips">
+        <button class="chip" data-len="5">5 Min.</button>
+        <button class="chip" data-len="7">7 Min.</button>
+        <button class="chip" data-len="10">10 Min.</button>
+      </div>
       <button class="primary" id="startBtn">▶&nbsp; Übung starten</button>
+    </div>
+
+    <div class="card hero beg">
+      <div class="eyebrow" style="color:var(--night)">Begleiter</div>
+      <h2 id="begTitle"></h2>
+      <p id="begShort"></p>
+      <select id="begSelect" style="margin-bottom:12px"></select>
+      <button class="primary night" id="begStart"></button>
     </div>
 
     <div class="sectionlabel">Ablauf</div>
@@ -432,46 +453,183 @@
 /* ===============================================================
    INHALTE – neue Übungen/Texte einfach hier ergänzen
 =============================================================== */
-const PHASE_LEN = 60; // Sekunden pro Abschnitt
+// Länge der Teile in Sekunden – je nach gewählter Dauer
+const LENGTHS = {
+  5:  [60, 60, 60, 60, 60],
+  7:  [60, 90, 60, 120, 90],
+  10: [90, 120, 90, 180, 120],
+};
+// Jeder Teil: ein Einstieg (zufällig aus "intro"), feste Sätze ("fixed") und
+// abwechselnde Erinnerungen ("pool"). So klingt die Übung nicht jedes Mal gleich.
 const PHASES = [
   { title:"Ankommen",
     short:"Bequem sitzen, normal atmen, spüren wie du sitzt.",
-    cues:[
-      {t:0,  text:"Setz dich bequem hin. Atme ganz normal. Du musst deine Atmung nicht verändern."},
-      {t:30, text:"Spüre einfach, wie du sitzt."},
+    intro:[
+      "Setz dich bequem hin. Atme ganz normal. Du musst deine Atmung nicht verändern.",
+      "Komm erst einmal an. Setz dich so hin, wie es gerade bequem ist. Die Atmung darf bleiben, wie sie ist.",
+      "Lass dich nieder. Du musst jetzt nichts leisten. Atme einfach so, wie du gerade atmest.",
+    ],
+    fixed:["Spüre einfach, wie du sitzt."],
+    pool:[
+      "Spür den Kontakt zum Stuhl. Deine Füße auf dem Boden.",
+      "Nichts muss jetzt anders sein.",
+      "Du bist einfach hier. Das reicht.",
+      "Wenn du magst, lass die Schultern ein kleines Stück sinken.",
     ]},
   { title:"Gedanken beobachten",
     short:"„Da ist ein Gedanke.“ – und weiterziehen lassen.",
-    cues:[
-      {t:0,  text:"Wenn ein Gedanke auftaucht, sag innerlich: Da ist ein Gedanke. Dann lässt du ihn weiterziehen."},
-      {t:35, text:"Nicht analysieren. Nicht bewerten. Nicht wegdrücken."},
+    intro:[
+      "Wenn ein Gedanke auftaucht, sag innerlich: Da ist ein Gedanke. Dann lässt du ihn weiterziehen.",
+      "Jetzt beobachtest du deine Gedanken. Wenn einer kommt, benennst du ihn: Da ist ein Gedanke. Und lässt ihn weiterziehen.",
+      "Stell dir vor, deine Gedanken sind Wolken am Himmel. Wenn eine auftaucht: Da ist ein Gedanke. Und sie zieht weiter.",
+    ],
+    fixed:["Nicht analysieren. Nicht bewerten. Nicht wegdrücken."],
+    pool:[
+      "Da ist ein Gedanke. Und zurück.",
+      "Du musst ihm nicht folgen. Nur bemerken.",
+      "Wenn du abgeschweift bist: kein Problem. Bemerken ist schon das Training.",
+      "Jedes Zurückkommen ist eine Wiederholung.",
+      "Ein Gedanke ist nur ein Gedanke. Kein Befehl.",
     ]},
   { title:"Körper beobachten",
     short:"„Mein Körper darf das gerade machen.“",
-    cues:[
-      {t:0,  text:"Achte kurz auf deinen Körper. Vielleicht bemerkst du Wärme, Herzschlag, Spannung, Kribbeln oder Schwitzen."},
-      {t:30, text:"Sag dir: Mein Körper darf das gerade machen. Du musst nichts verändern."},
+    intro:[
+      "Achte kurz auf deinen Körper. Vielleicht bemerkst du Wärme, Herzschlag, Spannung, Kribbeln oder Schwitzen.",
+      "Wandere mit deiner Aufmerksamkeit in den Körper. Wo spürst du etwas? Wärme, Druck, Herzschlag, Spannung?",
+      "Jetzt geht es um den Körper. Spür einfach nach, was gerade da ist.",
+    ],
+    fixed:["Sag dir: Mein Körper darf das gerade machen. Du musst nichts verändern."],
+    pool:[
+      "Was du spürst, darf da sein.",
+      "Du musst es nicht wegmachen. Nur bemerken.",
+      "Atme mit dem, was da ist. Nicht dagegen.",
+      "Dein Körper macht gerade einfach seinen Job.",
     ]},
   { title:"Der wichtigste Teil", key:true,
     short:"„Da ist er wieder. Ich lasse ihn da und mache weiter.“",
-    cues:[
-      {t:0,  text:"Wenn dein typischer Gedanke auftaucht, antwortest du: Da ist er wieder. Ich lasse ihn da und mache weiter. Dann zurück zur Atmung."},
-      {t:35, text:"Kommt er zehnmal, antwortest du zehnmal dasselbe."},
+    intro:[
+      "Wenn dein typischer Gedanke auftaucht, antwortest du: Da ist er wieder. Ich lasse ihn da und mache weiter. Dann zurück zur Atmung.",
+      "Jetzt kommt der wichtigste Teil. Wenn dein typischer Gedanke kommt, sagst du: Da ist er wieder. Ich lasse ihn da und mache weiter.",
     ],
-    inviteCues:[
-      {t:0,  text:"Lade deinen typischen Gedanken jetzt bewusst ein. Denk ihn ruhig einmal."},
-      {t:12, text:"Und dann antwortest du: Da ist er wieder. Ich lasse ihn da und mache weiter. Zurück zur Atmung."},
-      {t:38, text:"Kommt er zehnmal, antwortest du zehnmal dasselbe."},
+    inviteIntro:[
+      "Lade deinen typischen Gedanken jetzt bewusst ein. Denk ihn ruhig einmal. Und dann: Da ist er wieder. Ich lasse ihn da und mache weiter.",
+      "Jetzt der wichtigste Teil. Hol dir deinen typischen Gedanken bewusst her. Und antworte: Da ist er wieder. Ich lasse ihn da und mache weiter.",
+    ],
+    fixed:["Kommt er zehnmal, antwortest du zehnmal dasselbe."],
+    pool:[
+      "Da ist er wieder. Ich lasse ihn da und mache weiter.",
+      "Du musst nicht mit ihm diskutieren.",
+      "Danke, Kopf. Ich hab's gehört.",
+      "Er darf da sein. Du machst trotzdem weiter.",
+      "Zurück zur Atmung.",
+    ],
+    invitePool:[
+      "Wenn er gerade nicht da ist, lade ihn ruhig noch einmal ein.",
     ]},
-  { title:"Loslassen",
+  { title:"Loslassen", fixedLast:true,
     short:"„Ich kann den Gedanken haben und trotzdem weitermachen.“",
-    cues:[
-      {t:0,  text:"Atme normal weiter. Ich muss Gedanken nicht kontrollieren."},
-      {t:20, text:"Ich muss mich nicht kontrollieren."},
-      {t:40, text:"Ich kann den Gedanken haben und trotzdem weitermachen."},
+    intro:[
+      "Atme normal weiter. Ich muss Gedanken nicht kontrollieren.",
+      "Lass jetzt los. Ich muss Gedanken nicht kontrollieren.",
+    ],
+    fixed:["Ich muss mich nicht kontrollieren.", "Ich kann den Gedanken haben und trotzdem weitermachen."],
+    pool:[
+      "Gedanken sind wie Wetter. Du bist der Himmel.",
+      "Du musst nicht gewinnen. Nur weitermachen.",
+      "Alles, was jetzt da ist, darf da sein.",
     ]},
 ];
 const END_TEXT = "Die Übung ist beendet. Mach jetzt einfach weiter mit deinem Tag.";
+
+/* ---------- BEGLEITER: geführte Gedanken, jeden Tag ein anderer ----------
+   s = gesprochener Satz, p = Stille danach (Sekunden)                       */
+const BEG_INTRO = [
+  {s:"Schön, dass du da bist. Schließ die Augen, wenn du magst. Atme einfach so, wie du gerade atmest.", p:8},
+  {s:"Du musst jetzt nichts richtig machen. Du musst nur hier sein.", p:15},
+];
+const BEG_OUTRO = [
+  {s:"Nimm einen etwas tieferen Atemzug. Spür deine Füße auf dem Boden.", p:8},
+  {s:"Und wenn du so weit bist, öffne langsam die Augen. Und mach einfach weiter mit deinem Tag.", p:3},
+];
+const BEGLEITER = [
+  { id:"alarm", title:"Die Alarmanlage", short:"Dein Kopf will dich beschützen – er übertreibt nur.",
+    segs:[
+      {s:"Ich möchte dir etwas über deinen Kopf erzählen. Wenn das Karussell losgeht, ist an dir nichts kaputt. Dein Kopf will dich beschützen.", p:10},
+      {s:"Er ist wie eine Alarmanlage, die ein bisschen zu empfindlich eingestellt ist. Sie schlägt an, obwohl gerade kein Feuer brennt.", p:12},
+      {s:"Eine Alarmanlage muss man nicht beschimpfen. Man muss auch nicht jedes Mal die Feuerwehr rufen. Man kann einfach sagen: Danke, ich hab's gehört.", p:15},
+      {s:"Probier es jetzt. Wenn ein Gedanke kommt, sag innerlich: Danke, Kopf. Ich hab's gehört. Und zurück zum Atem.", p:45},
+      {s:"Ich bin jetzt eine Weile still. Jedes Mal, wenn der Alarm losgeht: Danke, Kopf. Ich hab's gehört.", p:150},
+      {s:"Ich bin noch da. Danke, Kopf. Und zurück zum Atem.", p:90},
+      {s:"Du machst das gut. Auch wenn der Alarm oft losging. Gerade dann.", p:15},
+      {s:"Die Alarmanlage darf bleiben. Oft wird sie mit der Zeit leiser, wenn sie merkt, dass du nicht mehr jedes Mal losrennst.", p:15},
+    ]},
+  { id:"radio", title:"Das Radio", short:"Das Lied läuft – und du fährst trotzdem weiter.",
+    segs:[
+      {s:"Stell dir vor, du fährst Auto. Im Hintergrund läuft das Radio.", p:8},
+      {s:"Manchmal läuft ein Lied, das du nicht magst. Laut, nervig, immer wieder dasselbe.", p:10},
+      {s:"Du musst nicht anhalten und das Radio reparieren. Du musst auch nicht mitsingen. Du fährst einfach weiter, und deine Augen bleiben auf der Straße.", p:12},
+      {s:"Deine Gedanken sind dieses Radio. Dein Atem ist die Straße.", p:15},
+      {s:"Wenn ein Gedanke laut wird, sag innerlich: Ah, das Radio. Und deine Aufmerksamkeit geht zurück auf die Straße. Zum Atem.", p:45},
+      {s:"Ich bin jetzt eine Weile still. Das Radio darf laufen. Du fährst.", p:150},
+      {s:"Ich bin noch da. Das Radio läuft. Augen auf die Straße.", p:90},
+      {s:"Merkst du? Das Radio läuft, und trotzdem kommst du voran.", p:15},
+      {s:"Irgendwann kommt ein anderes Lied. Das passiert von allein. Du musst nichts dafür tun.", p:15},
+    ]},
+  { id:"wetter", title:"Das Wetter", short:"Du bist nicht das Wetter. Du bist der Himmel.",
+    segs:[
+      {s:"Gedanken und Gefühle sind wie Wetter. Mal ziehen Wolken auf, mal regnet es, mal stürmt es.", p:10},
+      {s:"Du bist nicht das Wetter. Du bist der Himmel, in dem das Wetter passiert.", p:12},
+      {s:"Der Himmel muss den Sturm nicht wegschieben. Er hat einfach Platz dafür. Und hinter den dunkelsten Wolken ist er immer noch da.", p:15},
+      {s:"Schau jetzt, welches Wetter gerade in dir ist. Vielleicht ruhig, vielleicht bewölkt, vielleicht ein bisschen stürmisch. Alles ist in Ordnung.", p:25},
+      {s:"Wenn ein Gedanke kommt, sieh ihn als Wolke. Da ist eine Wolke. Und sie zieht weiter.", p:45},
+      {s:"Ich bin jetzt eine Weile still. Du bist der Himmel. Lass das Wetter einfach ziehen.", p:150},
+      {s:"Ich bin noch da. Da ist eine Wolke. Und sie zieht weiter.", p:90},
+      {s:"Kein Wetter bleibt für immer. Auch das schwerste nicht.", p:15},
+    ]},
+  { id:"gym", title:"Wiederholungen", short:"Jedes Zurückkommen ist eine Wiederholung – wie im Gym.",
+    segs:[
+      {s:"Du kennst das vom Training. Kein Muskel wächst durch eine einzige Wiederholung.", p:8},
+      {s:"Mit dem Kopf ist es genauso. Jedes Mal, wenn ein Gedanke dich mitnimmt, du es merkst und zurückkommst, ist das eine Wiederholung.", p:12},
+      {s:"Abschweifen ist kein Fehler. Es ist das Gewicht. Zurückkommen ist die Bewegung.", p:15},
+      {s:"Lass uns trainieren. Richte deine Aufmerksamkeit auf den Atem. Wenn du merkst, dass du weg warst, sag: Eine Wiederholung. Und zurück.", p:45},
+      {s:"Ich bin jetzt eine Weile still. Sammle Wiederholungen.", p:150},
+      {s:"Ich bin noch da. Eine Wiederholung. Und zurück.", p:90},
+      {s:"Egal ob es drei waren oder dreißig. Jede einzelne hat gezählt.", p:15},
+      {s:"Und so wie im Gym: Du musst nicht jeden Tag einen Rekord aufstellen. Du musst nur dranbleiben.", p:15},
+    ]},
+  { id:"freund", title:"Der gute Freund", short:"Sprich mit dir, wie mit jemandem, den du gern hast.",
+    segs:[
+      {s:"Stell dir vor, ein guter Freund sitzt neben dir. Er macht sich gerade Sorgen. Sein Kopf fährt Karussell.", p:10},
+      {s:"Du würdest ihn nicht anschreien. Du würdest nicht sagen: Reiß dich zusammen.", p:10},
+      {s:"Du würdest ihm vielleicht die Hand auf die Schulter legen und sagen: Ich weiß. Das ist gerade schwer. Komm, wir machen weiter.", p:12},
+      {s:"Jetzt sag das zu dir selbst. Leise, innerlich. Ich weiß. Das ist gerade schwer. Komm, wir machen weiter.", p:20},
+      {s:"Wenn du magst, leg eine Hand auf deine Brust oder deinen Bauch. Spür die Wärme.", p:30},
+      {s:"Ich bin jetzt eine Weile still. Wenn ein schwerer Gedanke kommt, begegne ihm wie diesem Freund. Freundlich. Ohne Drama.", p:150},
+      {s:"Ich bin noch da. Ich weiß. Komm, wir machen weiter.", p:90},
+      {s:"Du darfst mit dir so reden, wie du mit jemandem redest, den du gern hast.", p:15},
+    ]},
+  { id:"bahnhof", title:"Der Bahnhof", short:"Du musst nicht in jeden Zug einsteigen.",
+    segs:[
+      {s:"Stell dir vor, du stehst an einem Bahnhof. Züge fahren ein und wieder aus.", p:8},
+      {s:"Jeder Zug ist ein Gedanke. Manche sind leise, manche laut. Auf manchen steht: Oh nein, hoffentlich passiert das nicht wieder.", p:12},
+      {s:"Du musst nicht in jeden Zug einsteigen. Du kannst auf dem Bahnsteig stehen bleiben und zuschauen, wie er einfährt und wieder abfährt.", p:15},
+      {s:"Wenn ein Gedanke kommt: Da fährt ein Zug ein. Ich bleibe am Bahnsteig.", p:40},
+      {s:"Und wenn du doch eingestiegen bist und es merkst, steig an der nächsten Station einfach aus. Das ist völlig in Ordnung.", p:20},
+      {s:"Ich bin jetzt eine Weile still. Lass die Züge kommen und gehen.", p:150},
+      {s:"Ich bin noch da. Da fährt ein Zug. Ich bleibe am Bahnsteig.", p:90},
+      {s:"Es kommen immer wieder Züge. Das ist normal. Du entscheidest, wo du stehst.", p:15},
+    ]},
+  { id:"fluss", title:"Blätter im Fluss", short:"Leg jeden Gedanken auf ein Blatt und lass es treiben.",
+    segs:[
+      {s:"Stell dir vor, du sitzt an einem ruhigen Fluss. Das Wasser fließt langsam vorbei. Blätter treiben darauf.", p:12},
+      {s:"Wenn ein Gedanke kommt, leg ihn auf ein Blatt. Und schau zu, wie es weitertreibt.", p:15},
+      {s:"Egal, ob der Gedanke angenehm ist oder schwer. Er kommt auf ein Blatt. Und treibt weiter.", p:15},
+      {s:"Du musst das Wasser nicht schneller fließen lassen. Es fließt von allein.", p:40},
+      {s:"Ich bin jetzt eine Weile still. Ein Gedanke, ein Blatt. Und es treibt weiter.", p:150},
+      {s:"Wenn du merkst, dass du einem Blatt hinterhergeschwommen bist: kein Problem. Setz dich wieder ans Ufer.", p:90},
+      {s:"Der Fluss fließt weiter. Und du sitzt ruhig am Ufer.", p:15},
+    ]},
+];
 
 const SOS_STEPS = [
   {k:"Benennen",      big:"Da ist ein Gedanke.",            sub:"Sag es innerlich. Du musst nichts damit machen.",
@@ -500,7 +658,7 @@ const STORAGE_KEY = "medi-v1";
 const DEFAULT_SETTINGS = {
   voice:true, voiceURI:null, rate:0.9, invite:false,
   typical:"Oh nein, hoffentlich passiert das nicht wieder.",
-  bg:"off", volume:0.6, sosVoice:false, sosVibe:true,
+  bg:"off", volume:0.6, sosVoice:false, sosVibe:true, length:10,
 };
 let state = loadState();
 function loadState(){
@@ -702,10 +860,11 @@ const Voice = {
         || this.list.find(v=>/google/i.test(v.name))
         || this.list[0] || null;
   },
-  say(text){
-    if(!this.ok) return;
+  say(text, onEnd){
+    if(!this.ok){ if(onEnd) onEnd(); return; }
     speechSynthesis.cancel();
     const u = new SpeechSynthesisUtterance(text);
+    if(onEnd){ u.onend = onEnd; u.onerror = onEnd; }
     u.lang = "de-DE"; const v = this.pick(); if(v) u.voice = v;
     u.rate = state.settings.rate; u.pitch = 1;
     speechSynthesis.speak(u);
@@ -717,7 +876,7 @@ const Voice = {
    ÜBEN – Startseite
 =============================================================== */
 function renderWeekDots(el){
-  const days = new Set(state.journal.filter(e=>e.type==="uebung").map(e=>dayKey(e.ts)));
+  const days = new Set(state.journal.filter(e=>e.type==="uebung"||e.type==="begleiter").map(e=>dayKey(e.ts)));
   let html = "";
   for(let i=6;i>=0;i--){
     const d = new Date(); d.setDate(d.getDate()-i);
@@ -730,8 +889,18 @@ function renderPhaseList(){
   $("phaseList").innerHTML = PHASES.map((p,i)=>`
     <div class="phase ${p.key?"key":""}">
       <div class="n">${i+1}</div>
-      <div><div class="t">Minute ${i+1} · ${p.title}</div><div class="s">${p.short}</div></div>
+      <div><div class="t">${p.title} · ${fmtDur((LENGTHS[state.settings.length]||LENGTHS[10])[i])}</div><div class="s">${p.short}</div></div>
     </div>`).join("");
+}
+function renderBegleiter(){
+  const today = todayBegIdx();
+  const idx = begChoice ?? today;
+  const b = BEGLEITER[idx];
+  $("begTitle").textContent = b.title;
+  $("begShort").textContent = b.short;
+  $("begSelect").innerHTML = `<option value="">Heute: ${esc(BEGLEITER[today].title)}</option>` +
+    BEGLEITER.map((x,i)=>`<option value="${i}" ${begChoice===i?"selected":""}>${esc(x.title)}</option>`).join("");
+  $("begStart").innerHTML = `▶&nbsp; Begleiter starten · ca. ${Math.round(begleiterSecs(b)/60)} Min.`;
 }
 function renderVoiceSettings(){
   const s = state.settings;
@@ -756,6 +925,9 @@ function renderVoiceSettings(){
 function renderUeben(){
   renderWeekDots($("weekDotsUeben"));
   renderPhaseList();
+  renderBegleiter();
+  document.querySelectorAll("#lenChips .chip").forEach(c=>c.classList.toggle("on", parseInt(c.dataset.len,10)===state.settings.length));
+  $("startBtn").innerHTML = `▶&nbsp; Übung starten · ${state.settings.length} Min.`;
   renderVoiceSettings();
   $("setInvite").checked = state.settings.invite;
   $("setTypical").value = state.settings.typical;
@@ -766,37 +938,63 @@ $("setVoice").addEventListener("change", e=>{ state.settings.voice = e.target.ch
 $("setVoiceName").addEventListener("change", e=>{ state.settings.voiceURI = e.target.value; saveState(); });
 $("setRate").addEventListener("change", e=>{ state.settings.rate = parseFloat(e.target.value); saveState(); });
 $("voiceTest").addEventListener("click", ()=> Voice.say("Da ist ein Gedanke. Ich lasse ihn da und mache weiter."));
+$("lenChips").addEventListener("click", e=>{ const c=e.target.closest(".chip"); if(!c) return; state.settings.length=parseInt(c.dataset.len,10); saveState(); renderUeben(); });
+$("begSelect").addEventListener("change", e=>{ begChoice = e.target.value==="" ? null : parseInt(e.target.value,10); renderBegleiter(); });
 $("setInvite").addEventListener("change", e=>{ state.settings.invite = e.target.checked; saveState(); });
 $("setTypical").addEventListener("input", e=>{ state.settings.typical = e.target.value; saveState(); });
 $("setBg").addEventListener("change", e=>{ state.settings.bg = e.target.value; saveState(); });
 
 /* ===============================================================
-   SESSION – die geführte 5-Minuten-Übung
+   SESSION – Mentaltraining & Begleiter
 =============================================================== */
 let sess = null;
-const TOTAL = PHASES.length * PHASE_LEN;
+const pick = a => a[Math.floor(Math.random()*a.length)];
+function shuffle(a){ a = a.slice(); for(let i=a.length-1;i>0;i--){ const j=Math.floor(Math.random()*(i+1)); [a[i],a[j]]=[a[j],a[i]]; } return a; }
+function fmtDur(sec){
+  const m = sec/60;
+  return (Number.isInteger(m) ? m : String(Math.floor(m)) + "½") + " Min.";
+}
+function fmtClock(sec){ sec = Math.max(0, Math.round(sec)); return `${Math.floor(sec/60)}:${String(sec%60).padStart(2,"0")}`; }
 
-function cuesFor(i){ const p = PHASES[i]; return (p.inviteCues && state.settings.invite) ? p.inviteCues : p.cues; }
+// Baut den Ablauf für diese Übung: Einstieg + feste Sätze + zufällige Erinnerungen
+function buildSchedule(){
+  const durs = LENGTHS[state.settings.length] || LENGTHS[10];
+  const inv = state.settings.invite;
+  let start = 0;
+  return PHASES.map((p,i)=>{
+    const dur = durs[i];
+    const gap = dur <= 60 ? 20 : 38;
+    const slots = [];
+    for(let t=gap; t<=dur-12; t+=gap) slots.push(t);
+    const texts = new Array(slots.length).fill(null);
+    const fixed = (p.fixed||[]).slice(0, slots.length);
+    if(p.fixedLast) fixed.forEach((f,k)=> texts[slots.length-fixed.length+k] = f);
+    else fixed.forEach((f,k)=> texts[k] = f);
+    const pool = shuffle((p.pool||[]).concat(inv && p.invitePool ? p.invitePool : []));
+    for(let k=0;k<texts.length;k++) if(texts[k]===null && pool.length) texts[k] = pool.shift();
+    const intro = pick(inv && p.inviteIntro ? p.inviteIntro : p.intro);
+    const cues = [{t:0, text:intro}].concat(slots.map((t,k)=>({t, text:texts[k]})).filter(c=>c.text));
+    const ph = {title:p.title, key:!!p.key, start, dur, cues};
+    start += dur;
+    return ph;
+  });
+}
 
-function startSession(){
-  Sound.ensure();
-  if(Sound.playing()) Sound.stop(1);
-  sess = {start:performance.now(), pausedAt:null, pausedTotal:0, fired:new Set(), phase:-1, thoughts:0, done:false};
+function openOverlay(segments, withThoughtBtn){
   $("sessCenter").innerHTML = `
     <div class="orb" id="orb"></div>
     <div class="sess-phase" id="sessPhase"></div>
     <div class="sess-text" id="sessText"></div>
     <div class="sess-typical" id="sessTypical" hidden></div>`;
   $("sessBottom").hidden = false;
+  $("thoughtBtn").hidden = !withThoughtBtn;
   $("thoughtCount").textContent = "0";
   $("pauseBtn").innerHTML = "❚❚&nbsp; Pause";
-  $("sessSegs").innerHTML = PHASES.map(p=>`<i class="${p.key?"key":""}"><b></b></i>`).join("");
+  $("sessSegs").innerHTML = segments.map(s=>`<i class="${s.key?"key":""}" style="flex-grow:${s.grow}"><b></b></i>`).join("");
   $("session").hidden = false;
   document.body.style.overflow = "hidden";
   keepAwake(true);
   if(state.settings.bg !== "off") setTimeout(()=>Sound.play(state.settings.bg), 300);
-  sess.timer = setInterval(tick, 250);
-  tick();
 }
 function elapsed(){
   const now = sess.pausedAt ?? performance.now();
@@ -807,12 +1005,24 @@ function showCue(text){
   el.classList.add("dim");
   setTimeout(()=>{ el.textContent = text; el.classList.remove("dim"); }, 350);
 }
+
+/* ---------- Mentaltraining (5 / 7 / 10 Min.) ---------- */
+function startSession(){
+  Sound.ensure();
+  if(Sound.playing()) Sound.stop(1);
+  const plan = buildSchedule();
+  sess = {mode:"training", plan, total:plan.reduce((a,p)=>a+p.dur,0), start:performance.now(), pausedAt:null, pausedTotal:0,
+          fired:new Set(), phase:-1, thoughts:0, done:false};
+  openOverlay(plan.map(p=>({grow:p.dur, key:p.key})), true);
+  sess.timer = setInterval(tick, 250);
+  tick();
+}
 function renderPhase(i){
-  const p = PHASES[i];
+  const p = sess.plan[i];
   const ph = $("sessPhase");
-  ph.textContent = `Minute ${i+1} · ${p.title}`;
-  ph.classList.toggle("key", !!p.key);
-  $("orb").classList.toggle("key", !!p.key);
+  ph.textContent = `Teil ${i+1} von ${sess.plan.length} · ${p.title}`;
+  ph.classList.toggle("key", p.key);
+  $("orb").classList.toggle("key", p.key);
   const typ = $("sessTypical");
   const thought = (state.settings.typical||"").trim();
   if(p.key && thought){
@@ -821,14 +1031,13 @@ function renderPhase(i){
   } else typ.hidden = true;
 }
 function tick(){
-  if(!sess || sess.done) return;
+  if(!sess || sess.done || sess.mode !== "training") return;
   const e = elapsed();
-  if(e >= TOTAL){ finishSession(true); return; }
-  const i = Math.floor(e / PHASE_LEN), pe = e - i*PHASE_LEN;
-  if(i !== sess.phase){
-    sess.phase = i; Sound.gong(); renderPhase(i);
-  }
-  cuesFor(i).forEach((c,ci)=>{
+  if(e >= sess.total){ finishSession(true); return; }
+  let i = sess.plan.findIndex(p => e < p.start + p.dur);
+  const p = sess.plan[i], pe = e - p.start;
+  if(i !== sess.phase){ sess.phase = i; Sound.gong(); renderPhase(i); }
+  p.cues.forEach((c,ci)=>{
     const k = i+"_"+ci;
     if(pe >= c.t && !sess.fired.has(k)){
       sess.fired.add(k);
@@ -839,49 +1048,104 @@ function tick(){
       }
     }
   });
-  const rem = Math.ceil(TOTAL - e);
-  $("sessTime").textContent = `${Math.floor(rem/60)}:${String(rem%60).padStart(2,"0")}`;
+  $("sessTime").textContent = fmtClock(Math.ceil(sess.total - e));
   document.querySelectorAll("#sessSegs i b").forEach((b,bi)=>{
-    const f = bi < i ? 1 : bi > i ? 0 : pe/PHASE_LEN;
+    const f = bi < i ? 1 : bi > i ? 0 : pe/p.dur;
     b.style.width = (f*100).toFixed(1)+"%";
   });
 }
+
+/* ---------- Begleiter ---------- */
+function speechSecs(text){ return text.length / (13 * (state.settings.rate||0.9)); }
+function begleiterSecs(b){ return [...BEG_INTRO, ...b.segs, ...BEG_OUTRO].reduce((a,s)=>a+speechSecs(s.s)+s.p, 3); }
+function todayBegIdx(){ const d = new Date(); const n = Math.floor((d.getTime() - d.getTimezoneOffset()*60000)/86400000); return n % BEGLEITER.length; }
+let begChoice = null; // null = Begleiter des Tages
+
+function startBegleiter(){
+  const b = BEGLEITER[begChoice ?? todayBegIdx()];
+  Sound.ensure();
+  if(Sound.playing()) Sound.stop(1);
+  sess = {mode:"begleiter", b, segs:[...BEG_INTRO, ...b.segs, ...BEG_OUTRO], idx:-1, token:0,
+          start:performance.now(), pausedAt:null, pausedTotal:0, thoughts:0, done:false};
+  openOverlay([{grow:1}], false);
+  $("sessPhase").textContent = "Begleiter · " + b.title;
+  $("orb").classList.add("night");
+  $("sessText").textContent = "";
+  Sound.gong();
+  sess.timer = setInterval(()=>{ if(sess && !sess.done) $("sessTime").textContent = fmtClock(elapsed()); }, 500);
+  sess.waitTO = setTimeout(begNext, 2500);
+}
+function begNext(){
+  if(!sess || sess.done || sess.mode !== "begleiter" || sess.pausedAt) return;
+  sess.idx++;
+  if(sess.idx >= sess.segs.length){ finishSession(true); return; }
+  const seg = sess.segs[sess.idx];
+  showCue(seg.s);
+  const bar = document.querySelector("#sessSegs i b");
+  if(bar) bar.style.width = ((sess.idx+1)/sess.segs.length*100).toFixed(1)+"%";
+  const tok = ++sess.token;
+  const after = ()=>{
+    if(!sess || sess.token !== tok || sess.pausedAt) return;
+    const t2 = ++sess.token;
+    clearTimeout(sess.fallbackTO);
+    sess.waitTO = setTimeout(()=>{ if(sess && sess.token === t2) begNext(); }, seg.p*1000);
+  };
+  const est = speechSecs(seg.s);
+  if(state.settings.voice && Voice.ok){
+    setTimeout(()=>{ if(sess && sess.token === tok && !sess.pausedAt) Voice.say(seg.s, after); }, 400);
+    sess.fallbackTO = setTimeout(after, (est*1.6 + 5)*1000); // falls die Stimme kein "fertig" meldet
+  } else {
+    sess.fallbackTO = setTimeout(after, (est*1.2 + 1)*1000);
+  }
+}
+
+/* ---------- gemeinsam ---------- */
 function togglePause(){
   if(!sess || sess.done) return;
   if(sess.pausedAt){
     sess.pausedTotal += performance.now() - sess.pausedAt; sess.pausedAt = null;
     $("pauseBtn").innerHTML = "❚❚&nbsp; Pause"; $("orb").classList.remove("paused");
+    if(sess.mode === "begleiter"){ sess.idx--; begNext(); } // aktuellen Satz noch einmal
   } else {
     sess.pausedAt = performance.now(); Voice.stop();
+    if(sess.mode === "begleiter"){ sess.token++; clearTimeout(sess.waitTO); clearTimeout(sess.fallbackTO); }
     $("pauseBtn").innerHTML = "▶&nbsp; Weiter"; $("orb").classList.add("paused");
   }
 }
 function finishSession(completed){
-  if(!sess) return;
+  if(!sess || sess.done) return;
   const e = elapsed();
   sess.done = true;
-  clearInterval(sess.timer);
+  sess.token = (sess.token||0) + 1;
+  clearInterval(sess.timer); clearTimeout(sess.waitTO); clearTimeout(sess.fallbackTO);
   Voice.stop();
   Sound.stop(completed ? 5 : 1);
   keepAwake(false);
-  const minutes = Math.round(Math.min(e, TOTAL)/60*10)/10;
-  if(e >= 20) addEntry({type:"uebung", thoughts:sess.thoughts, minutes, completed});
-
+  const minutes = Math.round(e/60*10)/10;
+  if(e >= 20){
+    if(sess.mode === "training") addEntry({type:"uebung", thoughts:sess.thoughts, minutes, completed, length:state.settings.length});
+    else addEntry({type:"begleiter", title:sess.b.title, minutes, completed});
+  }
   if(!completed){
     closeSession();
     if(e >= 20) showToast("Gespeichert – auch kurze Übungen zählen");
     return;
   }
   Sound.gong();
-  if(state.settings.voice) setTimeout(()=>Voice.say(END_TEXT), 1600);
-  const n = sess.thoughts;
-  const line = n === 0
-    ? "Du hast keinen Gedanken markiert. Auch das ist in Ordnung – es geht nicht ums Zählen, sondern ums Zurückkommen."
-    : `Du hast ${n}-mal einen Gedanken bemerkt – und bist jedes Mal zurückgekommen. Genau das ist das Training.`;
-  $("sessTime").textContent = "0:00";
+  let line;
+  if(sess.mode === "training"){
+    if(state.settings.voice) setTimeout(()=>Voice.say(END_TEXT), 1600);
+    const n = sess.thoughts;
+    line = n === 0
+      ? "Du hast keinen Gedanken markiert. Auch das ist in Ordnung – es geht nicht ums Zählen, sondern ums Zurückkommen."
+      : `Du hast ${n}-mal einen Gedanken bemerkt – und bist jedes Mal zurückgekommen. Genau das ist das Training.`;
+    $("sessTime").textContent = "0:00";
+  } else {
+    line = "Du hast dir Zeit für dich genommen. Das zählt.";
+  }
   document.querySelectorAll("#sessSegs i b").forEach(b=>b.style.width="100%");
   $("sessCenter").innerHTML = `
-    <div class="orb paused"></div>
+    <div class="orb paused ${sess.mode==="begleiter"?"night":""}"></div>
     <div class="endbox">
       <h2>Fertig.</h2>
       <p class="strong">${line}</p>
@@ -903,6 +1167,7 @@ function closeSession(){
   renderAll();
 }
 $("startBtn").addEventListener("click", startSession);
+$("begStart").addEventListener("click", startBegleiter);
 $("pauseBtn").addEventListener("click", togglePause);
 $("sessClose").addEventListener("click", ()=>{ if(sess && !sess.done) finishSession(false); else closeSession(); });
 $("thoughtBtn").addEventListener("click", ()=>{
@@ -1044,7 +1309,7 @@ $("volume").addEventListener("input", e=>{ state.settings.volume = parseFloat(e.
 function renderTagebuch(){
   const weekAgo = Date.now() - 7*86400000;
   const recent = state.journal.filter(e=>e.ts >= weekAgo);
-  $("stUeb").textContent = recent.filter(e=>e.type==="uebung").length;
+  $("stUeb").textContent = recent.filter(e=>e.type==="uebung"||e.type==="begleiter").length;
   $("stSos").textContent = recent.filter(e=>e.type==="sos").length;
   $("stWeiter").textContent = recent.filter(e=>e.type==="sos" || (e.type==="moment" && e.outcome==="weiter")).length;
   renderWeekDots($("weekDotsBuch"));
@@ -1067,8 +1332,11 @@ function renderTagebuch(){
     const tm = new Date(e.ts).toLocaleTimeString("de-DE",{hour:"2-digit",minute:"2-digit"});
     let t1="", t2="", cls="";
     if(e.type==="uebung"){
-      t1 = e.completed ? "5-Minuten-Training" : `Training (${String(e.minutes).replace(".",",")} Min.)`;
+      t1 = e.completed ? `${e.length||5}-Minuten-Training` : `Training (${String(e.minutes).replace(".",",")} Min.)`;
       t2 = `${e.thoughts}× Gedanke bemerkt – und zurückgekommen`;
+    } else if(e.type==="begleiter"){
+      cls="beg"; t1 = `Begleiter · ${esc(e.title)}`;
+      t2 = `${String(e.minutes).replace(".",",")} Min.${e.completed?"":" (vorzeitig beendet)"}`;
     } else if(e.type==="sos"){
       cls="sos"; t1 = "SOS – trotzdem weitergemacht";
       t2 = (e.answer==="ja" ? "Konnte etwas tun" : e.answer==="nein" ? "Gedanken dagelassen" : "") + (e.next ? ` · Danach: ${esc(e.next)}` : "");
